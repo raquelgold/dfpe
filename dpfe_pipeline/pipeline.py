@@ -1,34 +1,33 @@
 #!/usr/bin/env python3
 """
-Full indoor floor-plan pipeline.
+Indoor floor-plan pipeline: 360° video + confirmed transitions -> floor plans.
 
-Pre-requisites in {video_dir}/:
-  transition_yolo.csv    (frame_id, direction, method)
-  transition_sfuda.csv   (transition_frame, type, ...)
+Pre-requisite in {video_dir}/:
+  transitions_confirmed.csv  (direction, frame_min, frame_max, sources, n_sources)
+  produced by merge_transitions.py in the Indoor/Outdoor detection repo
+  (https://github.com/raquelgold/indoor_outdoor_detection)
 
 Two layout models are supported via --layout_model:
 
   horizonnet (default):
-    1  merge_transitions     transitions_confirmed.csv
-    2  extract_indoor_clips  clips/clip_NNN/rgb/
-    3  HorizonNet            clips/clip_NNN/vo_final/hn_mp3d/  (all frames)
-    4  SLAM                  clips/clip_NNN/slam_output/
-    5  setup_scene           clips/clip_NNN/{frm_ref.txt, …}
-    6  DFPE                  dfpe_results/{video_id}_0/
-    7  generate_maps
-
-  lgtnet:
-    1  merge_transitions     transitions_confirmed.csv
-    2  extract_indoor_clips  clips/clip_NNN/rgb/
+    1  extract_indoor_clips  clips/clip_NNN/rgb/
+    2  HorizonNet            clips/clip_NNN/vo_final/hn_mp3d/  (all frames)
     3  SLAM                  clips/clip_NNN/slam_output/
     4  setup_scene           clips/clip_NNN/{frm_ref.txt, …}
-    5  LGT-Net               clips/clip_NNN/vo_final/hn_mp3d/  (keyframes only)
-    6  DFPE                  dfpe_results/{video_id}_0/
-    7  generate_maps
+    5  DFPE                  dfpe_results/{video_id}_0/
+    6  generate_maps
+
+  lgtnet:
+    1  extract_indoor_clips  clips/clip_NNN/rgb/
+    2  SLAM                  clips/clip_NNN/slam_output/
+    3  setup_scene           clips/clip_NNN/{frm_ref.txt, …}
+    4  LGT-Net               clips/clip_NNN/vo_final/hn_mp3d/  (keyframes only)
+    5  DFPE                  dfpe_results/{video_id}_0/
+    6  generate_maps
 
 Usage (from the repo root, venv active):
     python dpfe_pipeline/pipeline.py \\
-        --video ~/lock_direction/VID_20260603_161558_00_097.mp4 \\
+        --video ~/lock_direction/new_lock_direction/VID_20260603_161558_00_097.mp4 \\
         --video_dir data/videos/097
 
     # Use LGT-Net instead of HorizonNet
@@ -37,8 +36,8 @@ Usage (from the repo root, venv active):
     # Resume from stage 3
     python dpfe_pipeline/pipeline.py ... --from_stage 3
 
-    # Run only stages 1-2 (useful for new videos)
-    python dpfe_pipeline/pipeline.py ... --to_stage 2
+    # Only cut the indoor clips
+    python dpfe_pipeline/pipeline.py ... --to_stage 1
 """
 
 import argparse
@@ -85,29 +84,20 @@ def stage_done(tag: str, paths) -> bool:
 
 # ── stages ───────────────────────────────────────────────────────────────────
 
-def stage1_merge(video_dir: Path):
-    out = video_dir / "transitions_confirmed.csv"
-    if stage_done("1 merge_transitions", out):
-        return
-    run(
-        [VENV_PY, HERE / "merge_transitions.py",
-         "--yolo_csv",   video_dir / "transition_yolo.csv",
-         "--sfuda_csv",  video_dir / "transition_sfuda.csv",
-         "--output_csv", out],
-        desc="Stage 1: merge transitions",
-    )
-
-
-def stage2_extract(video_dir: Path, video_path: Path):
+def stage1_extract(video_dir: Path, video_path: Path):
     out = video_dir / "clips" / "indoor_segments.csv"
-    if stage_done("2 extract_indoor_clips", out):
+    if stage_done("1 extract_indoor_clips", out):
         return
+    transitions = video_dir / "transitions_confirmed.csv"
+    if not transitions.exists():
+        sys.exit(f"  ERROR: {transitions} not found. Create it with merge_transitions.py "
+                 "from the Indoor/Outdoor detection repo.")
     run(
         [VENV_PY, HERE / "extract_indoor_clips.py",
          "--video",           video_path,
          "--transitions_csv", video_dir / "transitions_confirmed.csv",
          "--output_dir",      video_dir / "clips"],
-        desc="Stage 2: extract indoor clips",
+        desc="Stage 1: extract indoor clips",
     )
 
 
@@ -195,29 +185,27 @@ def _run_lgtnet(video_dir: Path):
 
 def _horizonnet_stages(video_dir, video_path, results_root, fps):
     return {
-        1: lambda: stage1_merge(video_dir),
-        2: lambda: stage2_extract(video_dir, video_path),
-        3: lambda: _run_horizonnet(video_dir),
-        4: lambda: _run_slam(video_dir, fps),
-        5: lambda: _run_setup(video_dir, fps),
-        6: lambda: stage6_dfpe(video_dir, results_root),
-        7: lambda: stage7_maps(video_dir, results_root),
+        1: lambda: stage1_extract(video_dir, video_path),
+        2: lambda: _run_horizonnet(video_dir),
+        3: lambda: _run_slam(video_dir, fps),
+        4: lambda: _run_setup(video_dir, fps),
+        5: lambda: stage5_dfpe(video_dir, results_root),
+        6: lambda: stage6_maps(video_dir, results_root),
     }
 
 
 def _lgtnet_stages(video_dir, video_path, results_root, fps):
     return {
-        1: lambda: stage1_merge(video_dir),
-        2: lambda: stage2_extract(video_dir, video_path),
-        3: lambda: _run_slam(video_dir, fps),
-        4: lambda: _run_setup(video_dir, fps),
-        5: lambda: _run_lgtnet(video_dir),
-        6: lambda: stage6_dfpe(video_dir, results_root, ly_model="lgt_mp3d"),
-        7: lambda: stage7_maps(video_dir, results_root),
+        1: lambda: stage1_extract(video_dir, video_path),
+        2: lambda: _run_slam(video_dir, fps),
+        3: lambda: _run_setup(video_dir, fps),
+        4: lambda: _run_lgtnet(video_dir),
+        5: lambda: stage5_dfpe(video_dir, results_root, ly_model="lgt_mp3d"),
+        6: lambda: stage6_maps(video_dir, results_root),
     }
 
 
-def stage6_dfpe(video_dir: Path, results_root: Path, ly_model: str = "hn_mp3d"):
+def stage5_dfpe(video_dir: Path, results_root: Path, ly_model: str = "hn_mp3d"):
     clips = clip_dirs(video_dir)
     vid_id = video_dir.name
     all_done = all(
@@ -225,18 +213,18 @@ def stage6_dfpe(video_dir: Path, results_root: Path, ly_model: str = "hn_mp3d"):
         for i in range(len(clips))
     )
     if all_done and clips:
-        print("  [skip] Stage 6 DFPE: results already exist")
+        print("  [skip] Stage 5 DFPE: results already exist")
         return
     run(
         CONDA_DFPE + [HERE / "run_dfpe.py",
                       "--video_dirs",    video_dir,
                       "--results_root",  results_root,
                       "--ly_model",      ly_model],
-        desc="Stage 6: DFPE",
+        desc="Stage 5: DFPE",
     )
 
 
-def stage7_maps(video_dir: Path, results_root: Path):
+def stage6_maps(video_dir: Path, results_root: Path):
     vid_id = video_dir.name
     clips = clip_dirs(video_dir)
     all_done = all(
@@ -244,14 +232,14 @@ def stage7_maps(video_dir: Path, results_root: Path):
         for i in range(len(clips))
     )
     if all_done and clips:
-        print("  [skip] Stage 7 maps: already exist")
+        print("  [skip] Stage 6 maps: already exist")
         return
     for i in range(len(clips)):
         scene_dir = results_root / f"{vid_id}_{i}"
         run(
             [VENV_PY, HERE / "generate_maps.py",
              "--results_dir", scene_dir],
-            desc=f"Stage 7: maps {vid_id}_{i}",
+            desc=f"Stage 6: maps {vid_id}_{i}",
         )
 
 
@@ -269,7 +257,7 @@ def main():
     parser.add_argument(
         "--video_dir", type=Path, default=None,
         help="Per-video pipeline dir (default: data/videos/{video_id}). "
-             "Must contain transition_yolo.csv and transition_sfuda.csv.")
+             "Must contain transitions_confirmed.csv.")
     parser.add_argument(
         "--results_root", type=Path,
         default=RESULTS_DEFAULT,
@@ -280,14 +268,14 @@ def main():
     parser.add_argument(
         "--layout_model", choices=["horizonnet", "lgtnet"], default="horizonnet",
         help="Layout estimation model (default: horizonnet). "
-             "horizonnet: stages 3=HorizonNet 4=SLAM 5=setup. "
-             "lgtnet: stages 3=SLAM 4=setup 5=LGT-Net.")
+             "horizonnet: stages 2=HorizonNet 3=SLAM 4=setup. "
+             "lgtnet: stages 2=SLAM 3=setup 4=LGT-Net.")
     parser.add_argument(
         "--from_stage", type=int, default=1, metavar="N",
-        help="Start from this stage (1–7); earlier stages are skipped")
+        help="Start from this stage (1–6); earlier stages are skipped")
     parser.add_argument(
-        "--to_stage", type=int, default=7, metavar="N",
-        help="Stop after this stage (1–7)")
+        "--to_stage", type=int, default=6, metavar="N",
+        help="Stop after this stage (1–6)")
     args = parser.parse_args()
 
     # Resolve video_dir from video filename if not given
@@ -318,7 +306,7 @@ def main():
     else:
         stages = _horizonnet_stages(video_dir, video_path, results_root, fps)
 
-    for n in range(args.from_stage, min(args.to_stage, 7) + 1):
+    for n in range(args.from_stage, min(args.to_stage, 6) + 1):
         print(f"\n{'─'*60}")
         print(f"Stage {n}")
         stages[n]()

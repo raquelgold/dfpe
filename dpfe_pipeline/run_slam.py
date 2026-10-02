@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage 4: Run stella_vslam on an indoor clip to produce camera trajectories.
+Stage 3 (horizonnet) / 2 (lgtnet): Run stella_vslam on an indoor clip to produce camera trajectories.
 
 Outputs (in clip_dir/slam_output/):
   frame_trajectory.txt      ← dense per-frame poses  (used by setup_scene.py → frm_ref.txt)
@@ -103,7 +103,7 @@ def run_slam(clip_dir: Path, config: Path = CONFIG, extra_args: list = None, fps
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Stage 4: Run stella_vslam on an indoor clip")
+    parser = argparse.ArgumentParser(description="Stage 3 (horizonnet) / 2 (lgtnet): Run stella_vslam on an indoor clip")
     parser.add_argument("--clip_dir", type=Path, required=True,
                         help="Clip directory containing rgb/")
     parser.add_argument("--config", type=Path, default=CONFIG,

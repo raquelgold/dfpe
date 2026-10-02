@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage 6: Run 360DFPE on each indoor clip.
+Stage 5: Run 360DFPE on each indoor clip.
 
 For each clip produces:
   {results_dir}/{scene}_{version}/
@@ -123,7 +123,7 @@ def run_dfpe_on_clip(video_dir: Path, clip_dir: Path, clip_idx: int, results_bas
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Stage 6: Run 360DFPE on indoor clips")
+    parser = argparse.ArgumentParser(description="Stage 5: Run 360DFPE on indoor clips")
     parser.add_argument(
         "--video_dirs", type=Path, nargs="+", required=True,
         help="Per-video pipeline dirs, e.g. data/videos/097 data/videos/098"

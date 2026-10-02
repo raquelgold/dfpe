@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Stage 5: Build DFPE scene directory from SLAM output.
+Stage 4 (horizonnet) / 3 (lgtnet): Build DFPE scene directory from SLAM output.
 
 Given SLAM output (frame_trajectory.txt + keyframe_trajectory.txt) and a
-clip directory (already containing rgb/ and vo_final/hn_mp3d/ from Stages 2–3),
+clip directory (already containing rgb/ and vo_final/hn_mp3d/ from the earlier stages),
 produces the full scaffold that direct_360_FPE needs:
 
   clip_dir/
@@ -218,7 +218,7 @@ def setup_scene(slam_dir: Path, clip_dir: Path, fps: float):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Stage 5: Build DFPE scene from SLAM output")
+    parser = argparse.ArgumentParser(description="setup_scene stage: Build DFPE scene from SLAM output")
     parser.add_argument("--slam_dir", type=Path, required=True,
                         help="SLAM output dir with frame_trajectory.txt and keyframe_trajectory.txt")
     parser.add_argument("--clip_dir", type=Path, required=True,

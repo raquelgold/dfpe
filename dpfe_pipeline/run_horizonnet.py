@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage 3: Run HorizonNet on indoor clip frames + write dummy pcl.ply.
+Stage 2: Run HorizonNet on indoor clip frames + write dummy pcl.ply.
 
 For each clip_NNN/ under a video's clips/ directory:
 
@@ -8,7 +8,7 @@ For each clip_NNN/ under a video's clips/ directory:
      Reads clip_NNN/rgb/frame_{id:06d}.jpg
      Writes clip_NNN/vo_final/hn_mp3d/{id}.npy   (integer frame id, no padding)
 
-  b) Dummy pcl.ply (frm_ref.txt and label.json are built in Stage 5 from SLAM)
+  b) Dummy pcl.ply (frm_ref.txt and label.json are built in Stage 4 from SLAM)
 
 Usage:
     conda run -n dfpe python dpfe_pipeline/run_horizonnet.py \
@@ -94,7 +94,7 @@ def write_pcl_ply(clip_dir: Path):
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Stage 3: HorizonNet + dummy DFPE scaffold")
+    parser = argparse.ArgumentParser(description="Stage 2: HorizonNet + dummy DFPE scaffold")
     parser.add_argument("--clips_dir", type=Path, required=True,
                         help="Directory containing clip_NNN/ subdirectories")
     parser.add_argument("--weights", type=Path,
@@ -116,7 +116,7 @@ def main():
         run_horizonnet(clip_dir, args.weights, device)
         write_pcl_ply(clip_dir)
 
-    print("\nStage 3 complete.")
+    print("\nStage 2 complete.")
 
 
 if __name__ == "__main__":

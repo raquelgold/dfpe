@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Stage 3 (LGT-Net variant): Run LGT-Net on indoor clip keyframes.
+Stage 4 (LGT-Net variant): Run LGT-Net on indoor clip keyframes.
 
 Replaces run_horizonnet.py. Operates only on SLAM keyframes (much faster)
-so it must run AFTER Stage 4 (SLAM) and Stage 5 (setup_scene).
+so it must run AFTER SLAM (stage 2) and setup_scene (stage 3).
 
 Outputs HorizonNet-compatible (3, 1024) .npy files named by keyframe ID:
     clip_dir/vo_final/hn_mp3d/{kf_id}.npy
@@ -148,7 +148,7 @@ def run_lgtnet(clip_dir: Path, device: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Stage 3 (LGT-Net): Layout inference on SLAM keyframes")
+    parser = argparse.ArgumentParser(description="Stage 4 (LGT-Net): Layout inference on SLAM keyframes")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--clip_dir",  type=Path, help="Single clip directory")
     group.add_argument("--clips_dir", type=Path, help="Parent clips/ directory (processes all clip_NNN/)")
@@ -165,7 +165,7 @@ def main():
         print(f"\n{'='*50}")
         run_lgtnet(clip_dir, args.device)
 
-    print("\nStage 3 (LGT-Net) complete.")
+    print("\nStage 4 (LGT-Net) complete.")
 
 
 if __name__ == "__main__":

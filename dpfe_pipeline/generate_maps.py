@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage 7: Generate top-down map images from DFPE coords JSON.
+Stage 6: Generate top-down map images from DFPE coords JSON.
 
 For each {scene}_coords.json produces three PNGs in the same directory:
   {scene}_map_scale_recovery.png  – wall boundary occupancy heatmap
@@ -251,7 +251,7 @@ def generate_maps(coords_json: Path, unified: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Stage 7: Generate top-down maps from DFPE coords JSON")
+    parser = argparse.ArgumentParser(description="Stage 6: Generate top-down maps from DFPE coords JSON")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--coords_json", type=Path,
                        help="Path to a specific *_coords.json file")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stage 2: Extract indoor frame clips from a video based on confirmed transitions.
+Stage 1: Extract indoor frame clips from a video based on confirmed transitions.
 
 Reads transitions_confirmed.csv, derives indoor frame ranges, and writes
 frames as JPEGs into:
@@ -21,6 +21,8 @@ from pathlib import Path
 
 
 def compute_indoor_segments(transitions_df: pd.DataFrame, total_frames: int) -> list:
+    """Same rule as compute_indoor_segments() in the Indoor/Outdoor detection repo's
+    merge_transitions.py (keep the two in sync)."""
     df = transitions_df.sort_values("frame_min").reset_index(drop=True)
     if df.empty:
         return []
