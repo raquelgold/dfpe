@@ -20,21 +20,7 @@ outside, the finished floor plan. Made with
 
 ---
 
-## Repository layout
-
-```
-dpfe_pipeline/                 the 6-stage pipeline
-  pipeline.py                    orchestrator
-  dpfe_paths.py                  all paths in one place (see "External dependencies")
-data/videos/{id}/              per-video input: transitions_confirmed.csv (23 videos, 081–107)
-direct_360_FPE/                floor-plan estimation (modified copy of upstream, see below)
-configs/stella_vslam/          SLAM camera configs, one per resolution/fps
-experiments/                   one-off studies, not part of the pipeline
-docs/                          demo GIF
-outputs/                       pipeline results (git-ignored)
-```
-
-### `direct_360_FPE` provenance
+## `direct_360_FPE` provenance
 
 A copy of [EnriqueSolarte/direct_360_FPE](https://github.com/EnriqueSolarte/direct_360_FPE)
 at commit `6a41911`, with local changes to 16 files (scale recovery, room-shape
@@ -101,15 +87,7 @@ make -j"$(nproc)"
 
 **The SLAM camera config's `cols`/`rows` must equal the video's pixel size
 exactly**, because clips are written at the video's native resolution.
-`run_slam.py` picks a config from `configs/stella_vslam/` by resolution and fps:
-
-| Config | Resolution | fps |
-|---|---|---|
-| `config_fps30_5760.yaml` (default) | 5760×2880 | 30 |
-| `config.yaml` | 5760×2880 | 24 |
-| `config_fps30_1920.yaml` | 1920×960 | 30 |
-| `config_fps30.yaml`, `config_fps15.yaml` | 1024×512 | 30 / 15 (old downscaled tests) |
-| `config_fps1.yaml` | 5760×2880 | 1 |
+`run_slam.py` picks a config from `configs/stella_vslam/` by resolution and fps.
 
 For a new resolution/fps, copy `config_fps30_5760.yaml`, set `Camera.cols`,
 `Camera.rows` and `Camera.fps` (check with `ffprobe`), and pass it with
@@ -152,20 +130,7 @@ clips, so their outputs would otherwise land in the same `{id}_{n}` folders.
 `--from_stage N` / `--to_stage N` run a sub-range. Results land in
 `outputs/dfpe_results/{ID}_{clip_index}/`, one folder per indoor clip.
 
-### Stage 1: `extract_indoor_clips.py`
-
-Turns the confirmed transitions into indoor frame ranges, conservatively:
-
-- `OUT_TO_IN` → indoor segment starts at `frame_max`
-- `IN_TO_OUT` → segment ends at `frame_min - 1`
-- If the first confirmed event is `IN_TO_OUT`, the video starts indoors.
-
-Writes `clips/clip_NNN/rgb/frame_{id:06d}.jpg` plus `clips/indoor_segments.csv`.
-An empty `transitions_confirmed.csv` (header only) means no indoor clip.
-
 ### Visualisations
-
-Not part of the 6 stages:
 
 ```bash
 # Top-down GIF of the map being built
@@ -179,45 +144,6 @@ Not part of the 6 stages:
     --video "$VIDEO" --video_dir data/videos/097 \
     --output outputs/097_indoor_map_viz.mp4
 ```
-
----
-
-## Output
-
-```
-outputs/dfpe_results/
-  {id}_0/
-    {id}_0_coords.json             ← room corners, wall planes, scale, camera trajectory
-    {id}_0_map_final_fp.png        ← estimated room polygons
-    {id}_0_map_scale_recovery.png  ← wall-density occupancy heatmap
-    {id}_0_map_wall_planes.png     ← RANSAC wall segments
-    {id}_final_fp.png, scale_recovery.jpg, results.csv, ...   (DFPE's own renders)
-  {id}_1/
-    ...
-```
-
----
-
-## Troubleshooting
-
-- **Re-running only checks that outputs exist, not whether inputs changed.**
-  Every stage skips if its output exists. After replacing
-  `transitions_confirmed.csv`, delete `data/videos/{id}/clips/` and
-  `outputs/dfpe_results*/{id}_*` to force a real re-run.
-- **"no clips found"**: `transitions_confirmed.csv` has no transitions, so the
-  detectors never agreed. Check it in the Indoor/Outdoor project.
-- **No `frame_trajectory.txt` after SLAM**: usually a camera-config mismatch
-  (see [SLAM program](#slam-program)) or too little texture/motion in the clip.
-- **LGT-Net stage does nothing**: it needs `vo_final/keyframe_list.txt`, so
-  SLAM and setup_scene must finish first.
-- **A long batch stopped with no error**: usually the session was killed.
-  Re-run the same command; finished stages are skipped.
-- **Two runs on the same clip give different rooms**: expected. DFPE's
-  room-shape solver (`room_shape_estimator.py`, `plane_estimator.py`) uses
-  unseeded `np.random`; on video 097, two DFPE runs on identical inputs gave
-  room corners up to 9.5 m apart (scale and wall planes were identical).
-  SLAM is also multi-threaded and not bit-for-bit repeatable. Compare results
-  across several runs rather than trusting a single run.
 
 ---
 
